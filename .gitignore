@@ -1,0 +1,58 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/vendor/
+changelogue
+/server
+/agent
+
+# Next.js
+web/.next/
+web/out/
+web/node_modules/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tools
+.claude/*
+!.claude/skills/
+.entire/
+.worktrees/
+.playwright-mcp/
+.superpowers/
+
+# Screenshots / images (design references)
+*.png
+*.jpeg
+*.jpg
+
+# Debug logs
+*-debug.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local build artifacts
+/cli
+/clog-stealth
+/stealth
+/.next/

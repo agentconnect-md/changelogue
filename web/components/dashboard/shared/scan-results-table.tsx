@@ -1,0 +1,143 @@
+"use client";
+
+import type { ScannedDependency, Project } from "@/lib/api/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ecosystemColors } from "./ecosystem-colors";
+import { useTranslation } from "@/lib/i18n/context";
+
+interface ScanResultsTableProps {
+  deps: ScannedDependency[];
+  selections: Record<number, boolean>;
+  onSelectionsChange: (s: Record<number, boolean>) => void;
+  projectAssignments: Record<number, { mode: "new" | "existing"; projectId?: string; newName?: string }>;
+  onProjectAssignmentsChange: (a: Record<number, { mode: "new" | "existing"; projectId?: string; newName?: string }>) => void;
+  existingProjects: Project[];
+}
+
+export function ScanResultsTable({
+  deps,
+  selections,
+  onSelectionsChange,
+  projectAssignments,
+  onProjectAssignmentsChange,
+  existingProjects,
+}: ScanResultsTableProps) {
+  const { t } = useTranslation();
+  const selectedCount = Object.values(selections).filter(Boolean).length;
+
+  return (
+    <div
+      className="overflow-hidden rounded-md border border-border bg-surface"
+    >
+      <table className="w-full text-[13px]" style={{ fontFamily: "var(--font-dm-sans)" }}>
+        <thead>
+          <tr className="border-b border-border bg-background">
+            <th className="w-10 px-3 py-2.5">
+              <Checkbox
+                checked={selectedCount === deps.length}
+                onCheckedChange={(checked) => {
+                  const val = !!checked;
+                  const s: Record<number, boolean> = {};
+                  deps.forEach((_, i) => { s[i] = val; });
+                  onSelectionsChange(s);
+                }}
+              />
+            </th>
+            <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {t("dashboard.scanResults.dependency")}
+            </th>
+            <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {t("dashboard.scanResults.version")}
+            </th>
+            <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {t("dashboard.scanResults.ecosystem")}
+            </th>
+            <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {t("dashboard.scanResults.source")}
+            </th>
+            <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+              {t("dashboard.scanResults.project")}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {deps.map((dep, i) => {
+            const eco = ecosystemColors[dep.ecosystem] || ecosystemColors.other;
+            return (
+              <tr
+                key={i}
+                className="transition-colors hover:bg-background"
+                style={{
+                  borderBottom: i < deps.length - 1 ? "1px solid var(--border)" : undefined,
+                  opacity: selections[i] ? 1 : 0.5,
+                }}
+              >
+                <td className="px-3 py-2.5">
+                  <Checkbox
+                    checked={!!selections[i]}
+                    onCheckedChange={(checked) => onSelectionsChange({ ...selections, [i]: !!checked })}
+                  />
+                </td>
+                <td className="px-3 py-2.5">
+                  <span
+                    className="text-[12px] text-foreground"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {dep.name}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span
+                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] bg-mono-bg text-secondary-foreground"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {dep.version}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{ backgroundColor: eco.bg, color: eco.text, border: `1px solid ${eco.border}` }}
+                  >
+                    {dep.ecosystem}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className="text-[12px] text-text-secondary" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {dep.upstream_repo}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5">
+                  <select
+                    value={projectAssignments[i]?.mode === "existing" ? projectAssignments[i]?.projectId : "__new__"}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "__new__") {
+                        onProjectAssignmentsChange({
+                          ...projectAssignments,
+                          [i]: { mode: "new", newName: dep.name.replace(/\//g, "-") },
+                        });
+                      } else {
+                        onProjectAssignmentsChange({
+                          ...projectAssignments,
+                          [i]: { mode: "existing", projectId: val },
+                        });
+                      }
+                    }}
+                    className="rounded-md border border-border px-2 py-1 text-[12px] bg-surface text-secondary-foreground"
+                    style={{ fontFamily: "var(--font-dm-sans)" }}
+                  >
+                    <option value="__new__">{t("dashboard.scanResults.createNewProject")}</option>
+                    {existingProjects.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

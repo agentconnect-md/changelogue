@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build server
+        run: go build -o changelogue ./cmd/server
+
+      - name: Build CLI
+        run: go build -o clog ./cmd/cli
+
+      - name: Build stealth
+        run: go build -o clog-stealth ./cmd/stealth
+
+      - name: Test
+        run: go test -coverprofile=coverage.out ./...
+
+      - name: Coverage badge
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          COV=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "COVERAGE=$COV" >> $GITHUB_ENV
+
+      - name: Update coverage badge
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: Schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 94cc8f0ddf90bb1d04dafbb76102786d
+          filename: coverage.json
+          label: coverage
+          message: ${{ env.COVERAGE }}%
+          valColorRange: ${{ env.COVERAGE }}
+          minColorRange: 20
+          maxColorRange: 80
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npx eslint
+
+      - name: Build
+        run: npm run build
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run integration tests
+        run: bash scripts/integration-test.sh

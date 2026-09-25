@@ -1,0 +1,134 @@
+"use client";
+
+import { useState } from "react";
+import useSWR from "swr";
+import type { Source } from "@/lib/api/types";
+
+const PROVIDER_PRIORITY: Record<string, number> = {
+  github: 0,
+  gitlab: 1,
+  dockerhub: 2,
+  "ecr-public": 3,
+  ghcr: 4,
+};
+
+interface AvatarCandidate {
+  url: string;
+  async?: false;
+}
+
+interface AsyncAvatarCandidate {
+  provider: "gitlab";
+  owner: string;
+  async: true;
+}
+
+type AvatarResult = AvatarCandidate | AsyncAvatarCandidate | null;
+
+function getAvatarCandidate(sources: Source[]): AvatarResult {
+  const sorted = [...sources]
+    .filter((s) => s.provider in PROVIDER_PRIORITY)
+    .sort((a, b) => (PROVIDER_PRIORITY[a.provider] ?? 99) - (PROVIDER_PRIORITY[b.provider] ?? 99));
+
+  for (const source of sorted) {
+    const owner = source.repository.split("/")[0];
+    if (!owner) continue;
+
+    if (source.provider === "github") {
+      return { url: `https://github.com/${owner}.png?size=64` };
+    }
+    if (source.provider === "gitlab") {
+      return { provider: "gitlab", owner, async: true };
+    }
+  }
+  return null;
+}
+
+async function fetchGitLabAvatar(owner: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://gitlab.com/api/v4/groups/${encodeURIComponent(owner)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.avatar_url) return data.avatar_url;
+    }
+    // Try as user if group lookup fails
+    const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${encodeURIComponent(owner)}`);
+    if (userRes.ok) {
+      const users = await userRes.json();
+      if (users[0]?.avatar_url) return users[0].avatar_url;
+    }
+  } catch {
+    // Network error — fall back to placeholder
+  }
+  return null;
+}
+
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+const PLACEHOLDER_COLORS = [
+  "#e8601a", "#2496ed", "#16a34a", "#7c3aed",
+  "#dc2626", "#0891b2", "#c026d3", "#ca8a04",
+  "#4f46e5", "#059669", "#d97706", "#9333ea",
+];
+
+interface ProjectLogoProps {
+  name: string;
+  sources?: Source[];
+  size?: number;
+}
+
+export function ProjectLogo({ name, sources = [], size = 40 }: ProjectLogoProps) {
+  const [imgError, setImgError] = useState(false);
+  const candidate = getAvatarCandidate(sources);
+
+  const gitlabOwner = candidate?.async ? candidate.owner : null;
+  const { data: gitlabAvatarUrl } = useSWR(
+    gitlabOwner ? `gitlab-avatar-${gitlabOwner}` : null,
+    () => fetchGitLabAvatar(gitlabOwner!),
+  );
+
+  const avatarUrl = candidate?.async ? gitlabAvatarUrl ?? null : candidate?.url ?? null;
+  const showImg = avatarUrl && !imgError;
+
+  const initial = (name[0] ?? "?").toUpperCase();
+  const color = PLACEHOLDER_COLORS[hashCode(name) % PLACEHOLDER_COLORS.length];
+  const fontSize = Math.max(10, Math.round(size * 0.45));
+
+  if (showImg) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={`${name} logo`}
+        width={size}
+        height={size}
+        onError={() => setImgError(true)}
+        className="shrink-0 rounded-md object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="shrink-0 rounded-md flex items-center justify-center select-none"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: color,
+        fontSize,
+        fontFamily: "var(--font-raleway), sans-serif",
+        fontWeight: 700,
+        color: "#ffffff",
+      }}
+      aria-label={`${name} logo`}
+    >
+      {initial}
+    </div>
+  );
+}

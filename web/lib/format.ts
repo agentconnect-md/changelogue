@@ -1,0 +1,50 @@
+export function timeAgo(dateStr?: string | null): string {
+  if (!dateStr) return "\u2014";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+export function validateRepository(provider: string, repo: string): string | null {
+  const trimmed = repo.trim();
+  if (!trimmed) return null;
+  if (provider === "github" && /^(https?:\/\/)?github\.com\//i.test(trimmed)) {
+    return "Use owner/repo format (e.g. ethereum/go-ethereum), not a full URL";
+  }
+  if (provider === "dockerhub" && /^(https?:\/\/)?hub\.docker\.com\//i.test(trimmed)) {
+    return "Use owner/image format (e.g. library/nginx), not a full URL";
+  }
+  if (provider === "ecr-public" && /^(https?:\/\/)?(gallery\.ecr\.aws|public\.ecr\.aws)\//i.test(trimmed)) {
+    return "Use alias/repo format (e.g. i6b2w2n6/op-node), not a full URL";
+  }
+  if (provider === "ghcr" && /^(https?:\/\/)?ghcr\.io\//i.test(trimmed)) {
+    return "Use owner/image format (e.g. agentconnect-md/changelogue), not a full URL";
+  }
+  if (provider === "gitlab" && /^(https?:\/\/)?gitlab\.com\//i.test(trimmed)) {
+    return "Use owner/repo format (e.g. inkscape/inkscape), not a full URL";
+  }
+  if (provider === "pypi" && /^(https?:\/\/)?pypi\.org\//i.test(trimmed)) {
+    return "Use package name format (e.g. requests), not a full URL";
+  }
+  if (provider === "npm" && /^(https?:\/\/)?(www\.)?npmjs\.com\//i.test(trimmed)) {
+    return "Use package name format (e.g. express), not a full URL";
+  }
+  if (/^https?:\/\//.test(trimmed)) {
+    return "Use owner/repo format, not a full URL";
+  }
+  return null;
+}
+
+export function formatInterval(seconds: number): string {
+  if (seconds === 3600) return "Hourly";
+  if (seconds === 86400) return "Daily";
+  if (seconds === 604800) return "Weekly";
+  if (seconds === 2592000) return "Monthly";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+  return `${(seconds / 86400).toFixed(1)}d`;
+}
